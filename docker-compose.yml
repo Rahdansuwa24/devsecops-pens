@@ -14,7 +14,7 @@ services:
       - db_data:/var/lib/mysql
       - ./database/Axon sales - Mysql Database.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root_password_123}"]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root_password_123}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -27,13 +27,8 @@ services:
     restart: always
     ports:
       - "5000:5000"
-    environment:
-      PORT: 5000
-      DB_HOST: db
-      DB_PORT: 3306
-      DB_USER: ${DB_USER:-axon_user}
-      DB_PASSWORD: ${DB_PASSWORD:-axon_password_123}
-      DB_NAME: ${DB_NAME:-axon_sales}
+    env_file:
+      - .env
     volumes:
       - ./backend:/app
       - /app/node_modules
@@ -50,8 +45,8 @@ services:
     restart: always
     ports:
       - "5173:5173"
-    environment:
-      - VITE_API_URL=http://localhost:5000/api
+    env_file:
+      - .env
     volumes:
       - ./frontend:/app
       - /app/node_modules
