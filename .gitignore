@@ -1,7 +1,21 @@
+# Environment & Secrets (DevSecOps Best Practice)
 .env
+*.env
+!.env.example
+
+# Dependencies
 node_modules/
+**/node_modules/
+
+# Build outputs
 dist/
 build/
-.DS_Store
+
+# Logs
 *.log
+npm-debug.log*
+
+# OS & Temporary files
+.DS_Store
+Thumbs.db
 *:Zone.Identifier
