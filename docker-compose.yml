@@ -32,7 +32,7 @@ services:
     volumes:
       - ./backend:/app
       - /app/node_modules
-    command: npm run dev
+    command: sh -c "npm install --legacy-peer-deps && npm run dev"
     depends_on:
       db:
         condition: service_healthy
@@ -50,7 +50,7 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
-    command: npm run dev
+    command: sh -c "npm install --legacy-peer-deps && npm run dev"
     depends_on:
       - backend
 
