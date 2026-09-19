@@ -1,6 +1,5 @@
 # LAPORAN PRAKTIKUM BAB 1
 
----
 
 ## **Fondasi Teoretis dan Kerangka Kerja DevSecOps**
 
