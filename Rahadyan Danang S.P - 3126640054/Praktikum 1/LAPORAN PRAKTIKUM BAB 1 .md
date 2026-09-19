@@ -3,7 +3,6 @@
 
 ## **Fondasi Teoretis dan Kerangka Kerja DevSecOps**
 
----
 
 #### **Nama : Rahadyan Danang Susetyo Pranawa**
 
