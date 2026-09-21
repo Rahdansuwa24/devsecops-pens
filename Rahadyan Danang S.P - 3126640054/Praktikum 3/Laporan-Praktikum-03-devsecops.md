@@ -98,17 +98,26 @@ docker run --rm -v data-vol:/data alpine:3.20 cat /data/log.txt
 docker run --rm -v data-vol:/source:ro -v $(pwd):/backup alpine:3.20 \
   tar czf /backup/data-vol-backup.tar.gz -C /source .
 ```
-![Screenshot docker compose ps](Gambar/docker-data-vol-run.png)
+
 ---
+
+![Screenshot docker compose ps](Gambar/docker-data-vol-run.png)
+
 *Gambar 2. Pembuatan Volume.*
 
-![](Gambar/docker-backup.png)
 ---
+
+![](Gambar/docker-backup.png)
+
 *Gambar 3. Proses Backup Volume.*
 
-![Screenshot pembacaan ulang data volume dan pembuatan backup](Gambar/backup-result.png)
 ---
+
+![Screenshot pembacaan ulang data volume dan pembuatan backup](Gambar/backup-result.png)
+
 *Gambar 4. Data pada named volume tetap tersedia setelah container `writer` dihapus dan berhasil dibuat backup `data-vol-backup.tar.gz`.*
+
+---
 
 ### 4.4 Compose Multi-container Nginx, Flask, dan PostgreSQL
 
@@ -170,17 +179,32 @@ docker compose logs --tail 100
 curl -v http://localhost:8080
 ```
 ![Screenshot docker compose ps](Gambar/struktur-file.png)
+
 *Gambar 5. Struktur Folder.*
+
+---
+
 ![Screenshot docker compose ps](Gambar/compose-ps.png)
+
 *Gambar 6. Output `docker compose ps` menunjukkan service `web`, `app`, dan `db` berjalan.*
 
+---
+
 ![Screenshot hasil curl aplikasi melalui localhost 8080](Gambar/docker-curl.png)
+
 *Gambar 7. Hasil `curl http://localhost:8080` membuktikan service web dapat diakses dari host melalui port yang dipublikasikan.*
+
+---
+
 ![Screenshot hasil curl aplikasi melalui localhost 8080](Gambar/localhost-check.png)
+
 *Gambar 8. Check di browser untuk localhost:8080.*
+
+---
 
 ![Screenshot log Compose atau healthcheck database](Gambar/log-tail-1.png)
 ![Screenshot log Compose atau healthcheck database](Gambar/log-tail-2.png)
+
 *Gambar 9. Cuplikan log menunjukkan service aplikasi dan database berjalan serta healthcheck PostgreSQL berhasil.*
 
 ---
@@ -251,6 +275,7 @@ Bind mount sangat membantu saat development karena perubahan file host dapat lan
 Masalah yang berpotensi muncul adalah service aplikasi gagal terhubung ke database walaupun container `db` sudah berjalan. Diagnosis dilakukan secara bertahap dengan memeriksa `docker compose ps`, membaca `docker compose logs --tail 100`, memastikan healthcheck database sehat, lalu memastikan hostname `db`, nama database, username, dan password pada environment sudah sesuai.
 
 ![Screenshot docker compose ps](Gambar/nnetwork-vol-ls.png)
+
 ![Screenshot docker compose ps](Gambar/docker-inspect.png)
 
 ---
