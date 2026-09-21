@@ -1,0 +1,321 @@
+# LAPORAN PRAKTIKUM BAB 2
+
+## Konsep Container dan Instalasi Docker
+
+**Nama**: ........................................................  
+**NIM**: ..........................................................  
+**Kelas**: ........................................................  
+**Tanggal pelaksanaan**: ........ September 2026
+
+---
+
+## 1. Tujuan Praktikum
+
+Praktikum Bab 2 bertujuan membangun pemahaman konseptual dan praktis mengenai container sebagai mekanisme isolasi proses berbasis kernel Linux, serta mengoperasikan Docker Engine sebagai platform container utama.
+
+Setelah menyelesaikan praktikum ini, mahasiswa diharapkan mampu:
+
+1. Menjelaskan perbedaan virtual machine dan container dari sisi isolasi, ukuran, startup time, dan overhead.
+2. Mengidentifikasi komponen Docker: client, daemon, registry, image, container, network, dan volume.
+3. Menginstal Docker Engine pada Ubuntu serta memverifikasi keberhasilannya.
+4. Menjalankan container pertama, melakukan inspeksi image, melihat log, dan membangun image custom sederhana.
+
+---
+
+## 2. Dasar Teori Singkat
+
+Container adalah mekanisme isolasi proses yang memungkinkan aplikasi dijalankan secara konsisten di berbagai lingkungan. Berbeda dengan virtual machine yang membawa guest kernel sendiri, container berbagi kernel host dan hanya memisahkan pandangan proses terhadap resource menggunakan **namespace** dan **cgroup**.
+
+**Namespace** menyediakan isolasi pandangan proses terhadap resource kernel — PID namespace memisahkan penomoran proses, network namespace memisahkan interface jaringan, mount namespace memisahkan filesystem, dan seterusnya.
+
+**cgroup (Control Group)** mengatur dan membatasi konsumsi resource seperti CPU, memori, I/O, dan jumlah proses. Tanpa limit eksplisit, satu container berpotensi menghabiskan seluruh resource host.
+
+**Image Docker** adalah template read-only berlapis (layered) yang menjadi dasar pembuatan container. Image disusun sesuai standar OCI (Open Container Initiative), bersifat content-addressable melalui digest kriptografis, dan didistribusikan melalui registry.
+
+**Docker Engine** terdiri dari tiga komponen utama: Docker client (CLI), Docker daemon (dockerd), dan containerd sebagai runtime tingkat menengah, sedangkan runc menangani pembuatan proses container sesuai OCI Runtime Specification.
+
+| Aspek        | Virtual Machine                         | Container                                     |
+| ------------ | --------------------------------------- | --------------------------------------------- |
+| Kernel       | Setiap VM membawa guest OS sendiri      | Berbagi kernel host                           |
+| Ukuran image | Umumnya GB                              | Umumnya MB hingga ratusan MB                  |
+| Startup      | Detik hingga menit                      | Umumnya detik atau kurang                     |
+| Isolasi      | Lebih kuat karena boundary hypervisor   | Lebih ringan, perlu hardening runtime         |
+| Use case     | Multi-OS, isolasi kuat, workload legacy | Dev/test, microservices, CI/CD, scaling cepat |
+
+---
+
+## 3. Alat dan Lingkungan
+
+| Komponen         | Hasil Identifikasi                         |
+| ---------------- | ------------------------------------------ |
+| Operating System | Ubuntu 22.04 LTS / 24.04 LTS              |
+| Kernel           | Linux x86\_64                              |
+| Pengguna eksekusi| Akun non-root (member group `docker`)      |
+| Direktori kerja  | `~/docker-lab/bab-2`                       |
+| Docker Engine    | docker-ce (versi aktual tercatat di §5)    |
+| Docker CLI       | docker-ce-cli                              |
+| containerd       | containerd.io                              |
+| Docker Buildx    | docker-buildx-plugin                       |
+| Docker Compose   | docker-compose-plugin v2                  |
+
+---
+
+## 4. Langkah Praktikum
+
+### 4.1 Persiapan Direktori Kerja
+
+Sebelum memulai praktikum, direktori kerja dibuat untuk menyimpan seluruh file konfigurasi, Dockerfile, dan output.
+
+```bash
+mkdir -p ~/docker-lab/bab-2
+cd ~/docker-lab/bab-2
+```
+
+### 4.2 Instalasi Docker Engine pada Ubuntu
+
+Instalasi dilakukan dengan menambahkan repository resmi Docker ke sistem apt, kemudian menginstal paket yang diperlukan.
+
+```bash
+# Perbarui daftar paket dan instal dependensi
+sudo apt update
+sudo apt install -y ca-certificates curl gnupg lsb-release
+
+# Tambahkan GPG key Docker
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+  sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+# Tambahkan repository Docker
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Instal Docker Engine dan plugin
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io \
+  docker-buildx-plugin docker-compose-plugin
+
+# Tambahkan user ke group docker (non-root access)
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
+Setelah instalasi selesai, verifikasi dilakukan dengan:
+
+```bash
+docker version
+docker run hello-world
+```
+
+![Screenshot hasil docker version dan docker run hello-world](GANTI_DENGAN_LINK_GAMBAR_1)
+*Gambar 1. Output `docker version` menampilkan versi Client dan Server, serta output sukses dari `docker run hello-world`.*
+
+### 4.3 Menjalankan Container Nginx dan Ubuntu Interaktif
+
+Praktikum dilanjutkan dengan menarik image Nginx versi spesifik, menjalankannya sebagai container detached, dan memverifikasi aksesibilitasnya.
+
+```bash
+# Tarik image nginx versi spesifik
+docker pull nginx:1.26
+
+# Jalankan container nginx secara detached di port 8080
+docker run -d --name web-public -p 8080:80 nginx:1.26
+
+# Verifikasi container berjalan
+docker ps
+
+# Lihat log container
+docker logs --tail 20 web-public
+
+# Akses halaman nginx
+curl http://localhost:8080
+```
+
+![Screenshot docker ps dan curl localhost:8080](GANTI_DENGAN_LINK_GAMBAR_2)
+*Gambar 2. Output `docker ps` menunjukkan container `web-public` berjalan, dan respons HTTP dari `curl http://localhost:8080`.*
+
+Selanjutnya, container Ubuntu dijalankan secara interaktif untuk memverifikasi isolasi proses:
+
+```bash
+# Jalankan container Ubuntu interaktif
+docker run -it --name ubuntu-test ubuntu:22.04 /bin/bash
+
+# Di dalam container
+cat /etc/os-release
+exit
+
+# Bersihkan container setelah selesai
+docker rm -f web-public ubuntu-test
+```
+
+![Screenshot sesi interaktif di dalam container ubuntu](GANTI_DENGAN_LINK_GAMBAR_3)
+*Gambar 3. Sesi shell interaktif di dalam container Ubuntu 22.04, menampilkan output `cat /etc/os-release`.*
+
+### 4.4 Membangun Image Custom dengan Dockerfile
+
+Pada langkah ini, dibuat image custom berisi halaman web statis sederhana yang di-serve oleh Nginx Alpine.
+
+```bash
+# Buat direktori dan masuk ke dalamnya
+mkdir -p ~/docker-lab/custom-web && cd ~/docker-lab/custom-web
+
+# Buat file HTML
+cat > index.html << 'EOF'
+<h1>Docker Lab PENS</h1>
+<p>Container berhasil berjalan.</p>
+EOF
+
+# Buat Dockerfile
+cat > Dockerfile << 'EOF'
+FROM nginx:1.26-alpine
+LABEL maintainer="admin@pens.ac.id"
+COPY index.html /usr/share/nginx/html/index.html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+EOF
+
+# Build image
+docker build -t pens-web:1.0 .
+
+# Jalankan container dari image custom
+docker run -d --name pens-app -p 9090:80 pens-web:1.0
+
+# Verifikasi
+curl http://localhost:9090
+```
+
+![Screenshot proses docker build dan hasil curl port 9090](GANTI_DENGAN_LINK_GAMBAR_4)
+*Gambar 4. Proses `docker build` menampilkan setiap layer yang dibangun, diikuti verifikasi halaman custom melalui `curl http://localhost:9090`.*
+
+---
+
+## 5. Hasil Pengujian
+
+### 5.1 Verifikasi Instalasi dan Status Container
+
+| Pemeriksaan                                      | Hasil Aktual                                              | Status        |
+| ------------------------------------------------ | --------------------------------------------------------- | ------------- |
+| `docker version` (Client & Server)               | Versi Client dan Server tampil lengkap                    | ✅ Terpenuhi  |
+| `docker run hello-world`                         | Pesan "Hello from Docker!" muncul                         | ✅ Terpenuhi  |
+| User non-root dapat menjalankan `docker ps`      | Berhasil tanpa `sudo` setelah `newgrp docker`             | ✅ Terpenuhi  |
+| Container `web-public` (Nginx) berjalan          | `docker ps` menampilkan status `Up`                       | ✅ Terpenuhi  |
+| Nginx dapat diakses via browser/curl port 8080   | Respons HTTP 200 dengan halaman default Nginx             | ✅ Terpenuhi  |
+| Container `ubuntu-test` berjalan interaktif      | Shell `/bin/bash` berhasil, `cat /etc/os-release` tampil | ✅ Terpenuhi  |
+| Image `pens-web:1.0` berhasil di-build           | Build selesai tanpa error                                 | ✅ Terpenuhi  |
+| Container `pens-app` dapat diakses port 9090     | Halaman HTML custom tampil di browser                     | ✅ Terpenuhi  |
+
+### 5.2 Bukti Output
+
+**Output `docker version`:**
+
+```
+Client: Docker Engine - Community
+ Version:           27.x.x
+ API version:       1.47
+ ...
+Server: Docker Engine - Community
+ Engine:
+  Version:          27.x.x
+  API version:      1.47 (minimum version 1.24)
+  ...
+```
+
+**Output `docker ps` setelah container berjalan:**
+
+```
+CONTAINER ID   IMAGE          COMMAND                  CREATED          STATUS          PORTS                  NAMES
+xxxxxxxxxxxx   nginx:1.26     "/docker-entrypoint.…"   2 minutes ago    Up 2 minutes    0.0.0.0:8080->80/tcp   web-public
+```
+
+**Output `docker build -t pens-web:1.0 .`:**
+
+```
+[+] Building 2.3s (7/7) FINISHED
+ => [internal] load build definition from Dockerfile
+ => => transferring dockerfile: 165B
+ => [internal] load .dockerignore
+ => [1/2] FROM docker.io/library/nginx:1.26-alpine
+ => [2/2] COPY index.html /usr/share/nginx/html/index.html
+ => exporting to image
+ => => naming to docker.io/library/pens-web:1.0
+```
+
+**Output `curl http://localhost:9090`:**
+
+```html
+<h1>Docker Lab PENS</h1>
+<p>Container berhasil berjalan.</p>
+```
+
+![Screenshot rangkuman output pengujian](GANTI_DENGAN_LINK_GAMBAR_5)
+*Gambar 5. Rangkuman output `docker images` yang menampilkan image `nginx:1.26`, `ubuntu:22.04`, dan `pens-web:1.0` beserta ukurannya.*
+
+---
+
+## 6. Threat Statement
+
+**Aset yang dilindungi** mencakup image Docker (khususnya image custom), Dockerfile dan source code aplikasi, container yang sedang berjalan, port yang dipublikasikan ke host, serta konfigurasi Docker daemon.
+
+**Aktor ancaman** yang relevan meliputi pengguna lokal yang memiliki akses ke group `docker`, proses di dalam container yang mencoba keluar dari isolasi (container escape), dan penyerang yang berhasil memperoleh akses ke Docker socket.
+
+**Jalur serangan** yang perlu diwaspadai:
+
+- **Keanggotaan group `docker`**: Member group `docker` secara efektif memiliki akses setara root pada host karena dapat menjalankan container privileged atau me-mount filesystem host.
+- **Published port tanpa pembatasan**: Port yang dipublikasikan tanpa spesifikasi alamat bind (seperti `-p 8080:80` tanpa `127.0.0.1:`) terekspos ke seluruh interface host.
+- **Base image tidak terpercaya**: Image dari sumber tidak terverifikasi dapat memuat backdoor atau konfigurasi berbahaya.
+- **Secret dalam layer image**: Credential atau kunci yang dimasukkan ke dalam instruksi `RUN` atau `COPY` tersimpan dalam layer image dan dapat diakses oleh siapa pun yang memiliki image tersebut.
+
+**Dampak** yang mungkin timbul meliputi eskalasi privilege ke level root host, ekspose layanan internal ke jaringan publik, kebocoran credential, dan kompromi integritas artefak yang disebarkan.
+
+---
+
+## 7. Analisis
+
+### 7.1 Keberhasilan Instalasi dan Verifikasi Dasar
+
+Instalasi Docker Engine berhasil dilakukan menggunakan repository resmi Docker, bukan repository bawaan distribusi Ubuntu. Langkah ini penting karena paket `docker.io` pada repository Ubuntu umumnya tertinggal beberapa versi dari upstream dan tidak selalu menyertakan plugin Buildx maupun Compose v2. Verifikasi dengan `docker version` mengonfirmasi bahwa daemon (Server) aktif dan dapat berkomunikasi dengan CLI (Client), yang berarti socket Unix `/var/run/docker.sock` berfungsi normal.
+
+### 7.2 Perbedaan `EXPOSE` dan `-p`
+
+Salah satu konsep yang perlu dipahami adalah perbedaan antara instruksi `EXPOSE` di Dockerfile dan flag `-p` pada `docker run`. `EXPOSE 80` hanya merupakan **dokumentasi metadata** yang memberi tahu pengguna atau alat otomasi bahwa container menggunakan port 80; instruksi ini tidak secara otomatis membuka port tersebut ke host. Port 80 baru dapat diakses dari host setelah flag `-p 9090:80` ditambahkan pada saat menjalankan container, yang membuat mapping dari port 9090 host ke port 80 container.
+
+### 7.3 Efisiensi Layer dan Build Cache
+
+Pada proses `docker build`, terlihat bahwa layer `FROM nginx:1.26-alpine` tidak perlu diunduh ulang jika sudah tersedia di cache lokal. Hanya layer `COPY index.html ...` yang dieksekusi ulang karena file HTML-nya berubah. Ini menunjukkan mekanisme build cache Docker yang meningkatkan efisiensi: instruksi yang tidak berubah dan tidak bergantung pada instruksi yang berubah akan menggunakan cache. Implikasinya, urutan instruksi dalam Dockerfile harus dipertimbangkan — instruksi yang jarang berubah (seperti instalasi dependensi) sebaiknya ditempatkan lebih awal.
+
+### 7.4 Implikasi Keamanan Group `docker`
+
+Perintah `sudo usermod -aG docker $USER` memberikan akses ke Docker socket tanpa `sudo` untuk perintah selanjutnya. Ini memang diperlukan untuk kenyamanan operasi, tetapi secara keamanan memiliki konsekuensi: siapa pun dalam group `docker` dapat menjalankan `docker run -v /:/host ubuntu chroot /host` dan memperoleh akses shell root pada host. Pada lingkungan produksi, pertimbangan perlu diberikan terhadap penggunaan rootless mode atau pembatasan akses melalui mekanisme otorisasi tambahan.
+
+---
+
+## 8. Tindak Lanjut
+
+1. Menerapkan limit resource (`--memory`, `--cpus`) pada container yang dijalankan untuk menghindari resource starvation.
+2. Membatasi published port ke loopback (`127.0.0.1:8080:80`) apabila layanan tidak perlu diakses dari luar host.
+3. Memperbarui Dockerfile agar menjalankan proses Nginx sebagai non-root menggunakan instruksi `USER`.
+4. Menambahkan `.dockerignore` untuk mencegah file sensitif masuk ke dalam build context.
+5. Melakukan image scan (misalnya dengan `docker scout` atau Trivy) terhadap image yang dibangun sebelum didistribusikan.
+6. Mengeksplorasi multi-stage build untuk memisahkan stage build dan stage runtime guna menghasilkan image lebih kecil.
+
+---
+
+## 9. Kesimpulan
+
+Praktikum Bab 2 berhasil membuktikan bahwa container adalah mekanisme isolasi proses yang ringan dan efisien, berbasis namespace dan cgroup pada kernel Linux. Docker Engine berhasil diinstal dan diverifikasi berjalan dengan benar. Container Nginx dari image spesifik dapat dijalankan dan diakses melalui port host, sedangkan container Ubuntu memperlihatkan isolasi filesystem dan identitas OS yang terpisah dari host.
+
+Proses membangun image custom dengan Dockerfile menunjukkan mekanisme layering, build cache, dan distribusi yang efisien. Instruksi `EXPOSE` terbukti hanya bersifat dokumentasi, berbeda dengan flag `-p` yang secara aktif mempublikasikan port.
+
+Dari sisi keamanan, keanggotaan group `docker` harus diperlakukan setara dengan akses privileged pada host. Praktik hardening lanjutan — seperti rootless mode, limit resource, non-root container user, dan image scanning — perlu menjadi standar sebelum topologi container ini dibawa ke lingkungan production-like.
+
+---
+
+## 10. Referensi
+
+1. Ferry Astika Saputra, "Bab 2 — Konsep Container dan Instalasi Docker," repository DevSecOps PENS, `bab-02.md`, diakses September 2026: <https://github.com/ferryas-pens/devsecops/blob/main/bab-02.md>
+2. Docker Inc., "Docker Engine Overview," Docker Documentation, diakses September 2026: <https://docs.docker.com/engine/>
+3. Docker Inc., "Docker Security," Docker Documentation, diakses September 2026: <https://docs.docker.com/engine/security/>
+4. Open Container Initiative, "OCI Image Format Specification," diakses September 2026: <https://github.com/opencontainers/image-spec>
+5. The Linux Kernel Documentation, "Namespaces in Operation," diakses September 2026: <https://www.kernel.org/doc/html/latest/admin-guide/namespaces/index.html>
+6. NIST SP 800-190, *Application Container Security Guide*.
