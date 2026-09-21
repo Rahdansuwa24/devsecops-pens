@@ -81,6 +81,7 @@ docker rm -f server-a server-b
 ```
 
 ![Screenshot hasil ping antar-container pada user-defined bridge](Gambar/docker-net.png)
+---
 *Gambar 1. Container `server-a` berhasil melakukan resolve nama dan ping ke `server-b` melalui user-defined bridge network.*
 
 ### 4.3 Volume Backup dan Restore
@@ -98,10 +99,15 @@ docker run --rm -v data-vol:/source:ro -v $(pwd):/backup alpine:3.20 \
   tar czf /backup/data-vol-backup.tar.gz -C /source .
 ```
 ![Screenshot docker compose ps](Gambar/docker-data-vol-run.png)
+---
 *Gambar 2. Pembuatan Volume.*
+
 ![](Gambar/docker-backup.png)
+---
 *Gambar 3. Proses Backup Volume.*
+
 ![Screenshot pembacaan ulang data volume dan pembuatan backup](Gambar/backup-result.png)
+---
 *Gambar 4. Data pada named volume tetap tersedia setelah container `writer` dihapus dan berhasil dibuat backup `data-vol-backup.tar.gz`.*
 
 ### 4.4 Compose Multi-container Nginx, Flask, dan PostgreSQL
